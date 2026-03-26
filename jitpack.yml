@@ -1,0 +1,7 @@
+# JitPack build configuration
+# JitPack auto-builds from GitHub tags
+# Usage: implementation("com.github.echostack:echostack-android:1.0.0")
+jdk:
+  - openjdk17
+install:
+  - ./gradlew :echostack-sdk:publishToMavenLocal

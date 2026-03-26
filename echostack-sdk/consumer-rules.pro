@@ -1,0 +1,2 @@
+-keep class com.echostack.sdk.** { *; }
+-keep class com.echostack.sdk.EchoStack { *; }
