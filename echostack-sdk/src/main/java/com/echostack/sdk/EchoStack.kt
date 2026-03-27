@@ -27,6 +27,7 @@ object EchoStack {
     private var eventQueue: EventQueue? = null
     private var referrerManager: ReferrerManager? = null
     private var advertisingIdManager: AdvertisingIdManager? = null
+    private var metaReferrerManager: MetaInstallReferrerManager? = null
 
     private var isConfigured = false
     private var _isSdkDisabled = false
@@ -74,7 +75,10 @@ object EchoStack {
         val adIdManager = AdvertisingIdManager(appContext)
         advertisingIdManager = adIdManager
 
-        val attribution = AttributionManager(device, network, referrer, adIdManager, appContext)
+        val metaReferrer = MetaInstallReferrerManager(appContext)
+        metaReferrerManager = metaReferrer
+
+        val attribution = AttributionManager(device, network, referrer, adIdManager, metaReferrer, appContext)
         attributionManager = attribution
 
         val queue = EventQueue(network, device, appContext)
@@ -85,11 +89,12 @@ object EchoStack {
         // Register lifecycle callbacks for automatic flush
         registerLifecycleCallbacks(appContext)
 
-        // Fetch GAID and install referrer, then send install ping asynchronously
+        // Fetch GAID, install referrer, and Meta referrer, then send install ping asynchronously
         scope.launch {
             adIdManager.fetchGaid()
             device.gaid = adIdManager.gaid
             referrer.fetchInstallReferrer()
+            metaReferrer.fetchMetaReferrer()
             attribution.sendInstallPing()
         }
 

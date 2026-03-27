@@ -12,6 +12,7 @@ class AttributionManager(
     private val networkClient: NetworkClient,
     private val referrerManager: ReferrerManager,
     private val advertisingIdManager: AdvertisingIdManager,
+    private val metaReferrerManager: MetaInstallReferrerManager,
     context: Context
 ) {
 
@@ -68,6 +69,11 @@ class AttributionManager(
         // Include raw referrer data
         referrerManager.referrerData?.let { data ->
             data["install_referrer"]?.let { fpJson.put("install_referrer", it) }
+        }
+
+        // Include Meta install referrer token when available
+        metaReferrerManager.metaInstallReferrer?.let { token ->
+            fpJson.put("meta_install_referrer", token)
         }
 
         Logger.debug("Sending install ping...")
