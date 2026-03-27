@@ -186,6 +186,118 @@ object EchoStack {
     internal fun isConfiguredForDebug(): Boolean = isConfigured
 
     /**
+     * Pass EchoStack attribution data to RevenueCat for campaign-based paywall targeting.
+     * Call after both EchoStack and RevenueCat Purchases SDKs are configured.
+     *
+     * Sets subscriber attributes so RevenueCat can segment users by acquisition source:
+     * - `$echoStackId` — EchoStack device ID
+     * - `$mediaSource` — attributed ad network (e.g., "meta", "google")
+     * - `$campaign` — campaign name
+     * - `$adGroup` — ad set / ad group ID
+     * - `$ad` — ad creative ID
+     * - `$keyword` — search keyword (if applicable)
+     *
+     * TODO(partnership): When EchoStack becomes a recognized RevenueCat integration partner,
+     * replace custom attributes with Purchases.sharedInstance.attribution.setEchoStackAttributionParams()
+     */
+    @JvmStatic
+    fun syncWithRevenueCat() {
+        if (!isConfigured || _isSdkDisabled) {
+            Logger.warning("SDK not configured or disabled. Cannot sync with RevenueCat.")
+            return
+        }
+
+        try {
+            val purchasesClass = Class.forName("com.revenuecat.purchases.Purchases")
+            val sharedInstance = purchasesClass.getMethod("getSharedInstance").invoke(null)
+
+            val attributes = mutableMapOf<String, String>()
+
+            getEchoStackId()?.let { attributes["\$echoStackId"] = it }
+
+            getAttributionParams()?.let { attribution ->
+                (attribution["network"] as? String)?.let { attributes["\$mediaSource"] = it }
+                (attribution["campaign_name"] as? String)?.let { attributes["\$campaign"] = it }
+                (attribution["adset_id"] as? String)?.let { attributes["\$adGroup"] = it }
+                (attribution["ad_id"] as? String)?.let { attributes["\$ad"] = it }
+                (attribution["keyword"] as? String)?.let { attributes["\$keyword"] = it }
+            }
+
+            if (attributes.isEmpty()) {
+                Logger.debug("No attribution data to sync with RevenueCat.")
+                return
+            }
+
+            // TODO(partnership): Replace with Purchases.sharedInstance.attribution.setEchoStackAttributionParams(attributes)
+            val setAttributesMethod = sharedInstance.javaClass.getMethod(
+                "setAttributes", Map::class.java
+            )
+            setAttributesMethod.invoke(sharedInstance, attributes)
+
+            Logger.debug("Synced ${attributes.size} attributes with RevenueCat.")
+        } catch (e: ClassNotFoundException) {
+            Logger.warning("RevenueCat SDK not found. Add the RevenueCat dependency to use syncWithRevenueCat().")
+        } catch (e: Exception) {
+            Logger.error("Failed to sync with RevenueCat: ${e.message}")
+        }
+    }
+
+    /**
+     * Sync EchoStack attribution with Superwall for campaign-targeted paywalls.
+     * Call after both SDKs are configured, before the first `Superwall.instance.register()` call.
+     *
+     * Sets the following Superwall user attributes:
+     * - `echostack_id`: The unique device installation ID.
+     * - Attribution parameters (network, campaign_id, campaign_name, etc.) when available.
+     *
+     * Requires the Superwall SDK to be linked in the host app. This is a no-op
+     * if Superwall is not available at runtime.
+     *
+     * TODO(partnership): When EchoStack is a recognized Superwall partner, replace with
+     * `Superwall.instance.setIntegrationAttribute(IntegrationAttribute.echoStackId, ...)`.
+     */
+    @JvmStatic
+    fun syncWithSuperwall() {
+        if (!isConfigured || _isSdkDisabled) {
+            Logger.warning("SDK not configured or disabled. Cannot sync with Superwall.")
+            return
+        }
+
+        val echoStackId = getEchoStackId()
+        if (echoStackId == null) {
+            Logger.warning("EchoStack ID not available. Cannot sync with Superwall.")
+            return
+        }
+
+        try {
+            val superwallClass = Class.forName("com.superwall.sdk.Superwall")
+            val getInstance = superwallClass.getMethod("getInstance")
+            val superwallInstance = getInstance.invoke(null)
+
+            val setUserAttributes = superwallInstance.javaClass.getMethod(
+                "setUserAttributes",
+                Map::class.java
+            )
+
+            // TODO(partnership): Replace with Superwall.instance.setIntegrationAttribute(IntegrationAttribute.echoStackId, echoStackId)
+            setUserAttributes.invoke(superwallInstance, mapOf("echostack_id" to echoStackId))
+            Logger.debug("Superwall: set echostack_id")
+
+            // Forward attribution parameters if available
+            val attribution = getAttributionParams()
+            if (attribution != null) {
+                // TODO(partnership): Replace with Superwall.instance.setIntegrationAttribute() calls
+                setUserAttributes.invoke(superwallInstance, attribution)
+                Logger.debug("Superwall: set attribution params (${attribution.size} keys)")
+            }
+        } catch (e: ClassNotFoundException) {
+            Logger.debug("Superwall SDK not available. Skipping Superwall sync.")
+        } catch (e: Exception) {
+            Logger.warning("Failed to sync with Superwall: ${e.message}")
+        }
+    }
+
+    /**
      * Disable the SDK (called internally on 401 or fatal errors).
      */
     internal fun disable() {
