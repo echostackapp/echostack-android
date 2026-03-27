@@ -9,8 +9,16 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 /**
+ * Represents a click ID extracted from the install referrer.
+ *
+ * @property value The raw click ID string.
+ * @property type One of "fbclid", "gclid", or "ttclid".
+ */
+data class ClickId(val value: String, val type: String)
+
+/**
  * Manages Google Play Install Referrer API for deterministic matching.
- * Extracts gclid, utm_source, utm_campaign from the referrer URL.
+ * Extracts click IDs (fbclid, gclid, ttclid) and UTM parameters from the referrer URL.
  */
 class ReferrerManager(private val context: Context) {
 
@@ -18,6 +26,19 @@ class ReferrerManager(private val context: Context) {
         private set
 
     var gclid: String? = null
+        private set
+
+    var fbclid: String? = null
+        private set
+
+    var ttclid: String? = null
+        private set
+
+    /**
+     * All click IDs found in the install referrer, keyed by type.
+     * Possible keys: "fbclid", "gclid", "ttclid".
+     */
+    var clickIds: Map<String, ClickId> = emptyMap()
         private set
 
     /**
@@ -31,7 +52,19 @@ class ReferrerManager(private val context: Context) {
         if (result != null) {
             referrerData = result
             gclid = result["gclid"]
+            fbclid = result["fbclid"]
+            ttclid = result["ttclid"]
+
+            val found = mutableMapOf<String, ClickId>()
+            gclid?.let { found["gclid"] = ClickId(it, "gclid") }
+            fbclid?.let { found["fbclid"] = ClickId(it, "fbclid") }
+            ttclid?.let { found["ttclid"] = ClickId(it, "ttclid") }
+            clickIds = found
+
             Logger.debug("Install referrer: $result")
+            if (found.isNotEmpty()) {
+                Logger.debug("Click IDs found: ${found.keys.joinToString()}")
+            }
         } else {
             Logger.debug("Install referrer not available or timed out")
         }
@@ -75,7 +108,8 @@ class ReferrerManager(private val context: Context) {
         }
 
     /**
-     * Parse referrer URL into key-value pairs. Extracts gclid if present.
+     * Parse referrer URL into key-value pairs. Extracts click IDs
+     * (fbclid, gclid, ttclid) and UTM parameters if present.
      */
     private fun parseReferrer(referrer: String): Map<String, String> {
         val params = mutableMapOf<String, String>()

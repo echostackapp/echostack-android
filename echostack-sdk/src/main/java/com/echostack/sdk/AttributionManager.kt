@@ -47,10 +47,15 @@ class AttributionManager(
             put("fingerprint", fpJson)
         }
 
-        // Include gclid from Install Referrer if available
-        referrerManager.gclid?.let {
-            payload.put("click_id", it)
-            payload.put("click_id_type", "gclid")
+        // Include click ID from Install Referrer if available.
+        // Priority order: fbclid > gclid > ttclid (Meta is most common).
+        val selectedClickId = referrerManager.fbclid?.let { ClickId(it, "fbclid") }
+            ?: referrerManager.gclid?.let { ClickId(it, "gclid") }
+            ?: referrerManager.ttclid?.let { ClickId(it, "ttclid") }
+
+        selectedClickId?.let {
+            payload.put("click_id", it.value)
+            payload.put("click_id_type", it.type)
         }
 
         // Include raw referrer data
