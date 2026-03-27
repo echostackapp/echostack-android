@@ -31,6 +31,7 @@ object EchoStack {
 
     private var isConfigured = false
     private var _isSdkDisabled = false
+    private var debugOverlay: DebugOverlay? = null
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -138,12 +139,51 @@ object EchoStack {
 
         eventQueue?.enqueue(event)
 
+        // Update debug overlay with last event
+        debugOverlay?.let {
+            it.lastEventSent = eventType
+            it.refresh()
+        }
+
         // Significant events trigger immediate flush
         val significant = setOf(EventTypes.PURCHASE, EventTypes.SUBSCRIBE)
         if (eventType in significant) {
             scope.launch { eventQueue?.flush() }
         }
     }
+
+    /**
+     * Show a floating debug overlay on the given activity with SDK status info.
+     * Only works when logLevel is [LogLevel.DEBUG].
+     */
+    @JvmStatic
+    fun showDebugOverlay(activity: Activity) {
+        if (configuration?.logLevel != LogLevel.DEBUG) {
+            Logger.warning("Debug overlay requires logLevel = DEBUG. Ignoring.")
+            return
+        }
+
+        hideDebugOverlay()
+
+        val overlay = DebugOverlay(activity)
+        debugOverlay = overlay
+        overlay.show()
+        Logger.debug("Debug overlay shown.")
+    }
+
+    /**
+     * Hide and remove the debug overlay.
+     */
+    @JvmStatic
+    fun hideDebugOverlay() {
+        debugOverlay?.hide()
+        debugOverlay = null
+    }
+
+    /**
+     * Internal check used by [DebugOverlay] to read configured state.
+     */
+    internal fun isConfiguredForDebug(): Boolean = isConfigured
 
     /**
      * Disable the SDK (called internally on 401 or fatal errors).
@@ -178,4 +218,18 @@ object EventTypes {
     const val SUBSCRIBE = "subscribe"
     const val AD_IMPRESSION = "ad_impression"
     const val AD_CLICK = "ad_click"
+    const val LOGIN = "login"
+    const val SIGN_UP = "sign_up"
+    const val REGISTER = "register"
+    const val ADD_TO_CART = "add_to_cart"
+    const val ADD_TO_WISHLIST = "add_to_wishlist"
+    const val INITIATE_CHECKOUT = "initiate_checkout"
+    const val LEVEL_START = "level_start"
+    const val LEVEL_COMPLETE = "level_complete"
+    const val TUTORIAL_COMPLETE = "tutorial_complete"
+    const val SEARCH = "search"
+    const val VIEW_ITEM = "view_item"
+    const val VIEW_CONTENT = "view_content"
+    const val SHARE = "share"
+    const val CUSTOM = "custom"
 }
