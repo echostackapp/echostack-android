@@ -39,6 +39,9 @@ dependencies {
     // Install Referrer API (deterministic Google Ads matching)
     implementation("com.android.installreferrer:installreferrer:2.2")
 
+    // Google Advertising ID (GAID) collection
+    implementation("com.google.android.gms:play-services-ads-identifier:18.1.0")
+
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 

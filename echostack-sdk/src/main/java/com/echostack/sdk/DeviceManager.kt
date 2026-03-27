@@ -20,6 +20,12 @@ class DeviceManager(private val context: Context) {
 
     val echoStackId: String
 
+    /**
+     * Google Advertising ID, set externally by [AdvertisingIdManager] after async fetch.
+     * Included in fingerprint when non-null.
+     */
+    var gaid: String? = null
+
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     init {
@@ -46,6 +52,9 @@ class DeviceManager(private val context: Context) {
         }
 
         fingerprint["language"] = Locale.getDefault().toString()
+
+        // Include GAID when available (user has not opted out of ad tracking)
+        gaid?.let { fingerprint["gaid"] = it }
 
         return fingerprint
     }

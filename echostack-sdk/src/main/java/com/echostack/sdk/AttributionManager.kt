@@ -11,6 +11,7 @@ class AttributionManager(
     private val deviceManager: DeviceManager,
     private val networkClient: NetworkClient,
     private val referrerManager: ReferrerManager,
+    private val advertisingIdManager: AdvertisingIdManager,
     context: Context
 ) {
 
@@ -45,6 +46,12 @@ class AttributionManager(
         val payload = JSONObject().apply {
             put("echostack_id", deviceManager.echoStackId)
             put("fingerprint", fpJson)
+        }
+
+        // Include GAID when available (user has not opted out)
+        advertisingIdManager.gaid?.let { gaid ->
+            payload.put("gaid", gaid)
+            fpJson.put("gaid", gaid)
         }
 
         // Include click ID from Install Referrer if available.
